@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from camera import OlympusCamera
+from olympus_wifi import OlympusCamera
 
 import datetime, io, os, queue, socket, sys, threading, tkinter, time
 from dataclasses import dataclass   # needs Python 3.7 or later

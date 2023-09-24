@@ -1,11 +1,5 @@
 import datetime, os, sys, time
 
-if sys.version_info.major < 3 or (sys.version_info.major == 3 and
-                                  sys.version_info.minor < 7):
-    print(f"Error: running {'.'.join([str(i) for i in sys.version_info[:3]])}; "
-          f"script '{__file__}' requires Python 3.7 or later.", file=sys.stderr)
-    sys.exit(1)
-
 import xml.etree.ElementTree as ElementTree
 from dataclasses import dataclass   # needs Python 3.7 or later
 from typing import List, Dict, Optional, Set, Union
