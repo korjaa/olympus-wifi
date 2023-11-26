@@ -1,4 +1,6 @@
-import datetime, os, sys, time
+import time
+import pathlib
+import datetime
 
 import xml.etree.ElementTree as ElementTree
 from dataclasses import dataclass   # needs Python 3.7 or later
@@ -34,9 +36,13 @@ class OlympusCamera:
 
     @dataclass
     class FileDescr:
-        file_name: str  # example "/DCIM/100OLYMP/P1010042.JPG"
-        file_size: int  # in bytes
-        date_time: str  # ISO date and time, no timezone
+        path: pathlib.PurePosixPath  # e.g. "/DCIM/100OLYMP/P1010042.JPG"
+        size: int  # in bytes
+        created: datetime.datetime
+        is_folder: bool
+
+        def __repr__(self):
+            return f"{self.path}, {self.created.isoformat()}, {self.size // 1024} kB"
 
     URL_PREFIX          = "http://192.168.0.10/"
     HEADERS             = { 'Host'      : '192.168.0.10',
@@ -303,8 +309,47 @@ class OlympusCamera:
         self.send_command(
             'exec_takemotion', com="starttake", point=focus_point)
 
-    # Return list of instances of class FileDescr for a given directory
-    # and all its subdirectories on the camera memory card.
+    @staticmethod
+    def _parse_ctime(encoded_date: int, encoded_time: int) -> datetime.datetime:
+        year = 1980 + (encoded_date >> 9)
+        month = (encoded_date >> 5) & 0xF
+        day = encoded_date & 0x1F
+
+        hour = encoded_time >> 11
+        minute = (encoded_time >> 5) & 0x3F
+        second = 2 * (encoded_time & 0x1F)
+
+        local_tzinfo = datetime.datetime.now(
+            datetime.timezone(datetime.timedelta(0))).astimezone().tzinfo
+
+        return datetime.datetime(
+            year=year, month=month, day=day,
+            hour=hour, minute=minute, second=second,
+            tzinfo=local_tzinfo)
+
+    @classmethod
+    def _parse_line_item(cls, line: str) -> FileDescr:
+        if line.count(",") > 6:
+            raise RuntimeError(f"{line=}")
+
+        path, name, size, attrib, edate, etime = line.split(",")
+        size, attrib, edate, etime = \
+            int(size), int(attrib), int(edate), int(etime)
+        created = cls._parse_ctime(edate, etime)
+
+        is_hidden = attrib & (1 << 1)
+        is_system = attrib & (1 << 2)
+        is_volume = attrib & (1 << 3)
+        is_folder = attrib & (1 << 4)
+        if is_hidden or is_system or is_volume:
+            raise RuntimeError(f"Only images and folders supported {line=}.")
+
+        result = cls.FileDescr(
+            path=f"{path}/{name}", size=size,
+            created=created, is_folder=is_folder)
+
+        return result
+
     def list_images(self, dir: str = '/DCIM') -> List[FileDescr]:
         try:
             result = self.send_command('get_imglist', DIR=dir)
@@ -312,28 +357,22 @@ class OlympusCamera:
             if e.response.status_code == 404: # camera returns error 404
                 return []                     # for an empty directory
             raise
+
+        # Split response and sanity check content
+        lines = result.text.split("\r\n")
+        if lines[0] != "VER_100":
+            raise RuntimeError(f"Unknown version {lines[0]=} != VER_100")
+        if lines[-1] != "":
+            raise RuntimeError(f"Last line is not empty {lines[-1]=}")
+
+        # Parse lines
         images = []
-        for line in result.text.split('\r\n'):
-            components = line.split(',')
-            if len(components) != 6:
-                continue
-            path = '/'.join(components[:2])
-            size, attrib, date, time = [int(cmp) for cmp in components[2:]]
-            datetime = f'{1980+(date>>9)}-{(date>>5)&15:02d}-{date&31:02d}'\
-                       f'T{time>>11:02d}:{(time>>5)&63:02d}:{2*(time&31):02d}'
-            if attrib & 2: # hidden
-                print(f"Ignoring hidden file '{path}'.")
-                continue
-            if attrib & 4: # system
-                print(f"Ignoring system file '{path}'.")
-                continue
-            if attrib & 8: # volume
-                print(f"Ignoring volume '{path}'.")
-                continue
-            if attrib & 16: # directory
-                images += self.list_images(path)
+        for line in lines[1:-1]:
+            item = self._parse_line_item(line)
+            if item.is_folder:
+                images.extend(self.list_images(dir=item.path))
             else:
-                images.append(self.FileDescr(path, size, datetime))
+                images.append(item)
         return images
 
     # Returns a jpeg image.
