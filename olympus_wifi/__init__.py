@@ -41,6 +41,12 @@ class OlympusCamera:
         created: datetime.datetime
         is_folder: bool
 
+        @property
+        def age(self) -> datetime.timedelta:
+            tzinfo = datetime.datetime.now(
+                datetime.timezone(datetime.timedelta(0))).astimezone().tzinfo
+            return datetime.datetime.now().astimezone(tzinfo) - self.created
+
         def __repr__(self):
             return f"{self.path}, {self.created.isoformat()}, {self.size // 1024} kB"
 
