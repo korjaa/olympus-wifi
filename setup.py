@@ -19,6 +19,7 @@ setup(
     },
     python_requires='~= 3.7',
     install_requires=[
-        "requests ~= 2.31"
+        "requests ~= 2.31",
+        "dbus-python ~= 1.3"
     ],
 )
