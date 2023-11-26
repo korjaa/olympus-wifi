@@ -356,6 +356,11 @@ class OlympusCamera:
 
         return result
 
+    def latest_image(self) -> FileDescr:
+        images = self.list_images()
+        images.sort(key=lambda x: x.created, reverse=True)
+        return images[0]
+
     def list_images(self, dir: str = '/DCIM') -> List[FileDescr]:
         try:
             result = self.send_command('get_imglist', DIR=dir)
