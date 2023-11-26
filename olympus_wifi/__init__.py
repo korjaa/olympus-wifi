@@ -295,13 +295,13 @@ class OlympusCamera:
             'exec_takemotion', com="assignafframe", point=point)
 
     # The camera takes a picture.
-    def take_picture(self) -> None:
-        self.send_command('switch_cammode', mode='shutter')
-        time.sleep(0.5)
-        self.send_command('exec_shutter', com='1st2ndpush')
-        time.sleep(0.5)
-        self.send_command('exec_shutter', com='2nd1strelease')
-        self.send_command('switch_cammode', mode='play')
+    def take_picture(self, x: int = None, y: int = None) -> None:
+        focus_point = None
+        if x is not None and y is not None:
+            focus_point = f"{x:04d}x{y:04d}"
+
+        self.send_command(
+            'exec_takemotion', com="starttake", point=focus_point)
 
     # Return list of instances of class FileDescr for a given directory
     # and all its subdirectories on the camera memory card.
