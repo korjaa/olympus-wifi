@@ -289,6 +289,11 @@ class OlympusCamera:
                           datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%S"),
                           diff=time.strftime("%z"))
 
+    def focus(self, x: int, y: int) -> None:
+        point = f"{x:04d}x{y:04d}"
+        self.send_command(
+            'exec_takemotion', com="assignafframe", point=point)
+
     # The camera takes a picture.
     def take_picture(self) -> None:
         self.send_command('switch_cammode', mode='shutter')
