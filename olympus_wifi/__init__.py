@@ -340,6 +340,12 @@ class OlympusCamera:
         return requests.get(self.URL_PREFIX + dir[1:],
                             headers=self.HEADERS).content
 
+    # Get list of liveview quality options.
+    def get_lvqtys(self):
+        cmds = self.get_commands()
+        result = cmds["switch_cammode"].args["mode"]["rec"]["lvqty"]
+        return result
+
     # Start the liveview; the camera will broadcast an RTP live stream at the
     # given UDP port in the given resolution. Supported values for the
     # resolution can be queried with member function:
